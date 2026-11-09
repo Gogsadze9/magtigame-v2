@@ -1,0 +1,47 @@
+name: Build APK from ZIP
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unzip project
+        run: |
+          ls -la
+          ZIP=$(ls *.zip | head -n 1)
+          echo "Unzipping $ZIP"
+          unzip -o "$ZIP" -d extracted
+          if [ $(ls -1 extracted | wc -l) -eq 1 ] && [ -d "extracted/$(ls extracted)" ]; then
+            cp -r extracted/*/ . 2>/dev/null || true
+          else
+            cp -r extracted/* . 2>/dev/null || true
+          fi
+          ls -la
+          du -h app/src/main/assets/game/index.html || du -h index.html || true
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Build APK
+        run: |
+          chmod +x gradlew || true
+          if [ -f gradlew ]; then
+            ./gradlew assembleDebug --stacktrace
+          else
+            gradle assembleDebug --stacktrace
+          fi
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MagtiGame-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
